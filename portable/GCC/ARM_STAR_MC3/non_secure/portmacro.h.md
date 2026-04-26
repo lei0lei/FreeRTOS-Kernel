@@ -1,0 +1,113 @@
+# portmacro.h 代码解说
+
+源文件：`portable/GCC/ARM_STAR_MC3/non_secure/portmacro.h`
+
+> 本文件由 `tools/generate_code_markdown.py` 自动生成。内容是面向阅读的代码解说，不会替代源码注释或官方文档。
+
+## 片段 1: 文件头和许可证
+
+```c
+/*
+ * FreeRTOS Kernel <DEVELOPMENT BRANCH>
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright (c) 2026 Arm Technology (China) Co., Ltd.All Rights Reserved.
+ * Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
+ */
+```
+
+**解说：** 这一段是文件头，说明项目归属、许可证和免责条款；它告诉使用者这个文件按 MIT 许可证发布。
+
+## 片段 2: 预处理配置 PORTMACRO_H
+
+```c
+#ifndef PORTMACRO_H
+#define PORTMACRO_H
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    extern "C" {
+#endif
+/* *INDENT-ON* */
+
+/*------------------------------------------------------------------------------
+ * Port specific definitions.
+ *
+ * The settings in this file configure FreeRTOS correctly for the given hardware
+ * and compiler.
+ *
+ * These settings should not be altered.
+ *------------------------------------------------------------------------------
+ */
+
+#ifndef configENABLE_MVE
+    #error configENABLE_MVE must be defined in FreeRTOSConfig.h. Set configENABLE_MVE to 1 to enable the MVE or 0 to disable the MVE.
+#endif /* configENABLE_MVE */
+/*-----------------------------------------------------------*/
+
+/**
+ * Architecture specifics.
+ */
+#define portARCH_NAME                    "STAR-MC3"
+#define portHAS_ARMV8M_MAIN_EXTENSION    1
+#define portARMV8M_MINOR_VERSION         1
+#define portDONT_DISCARD                 __attribute__( ( used ) )
+#define portVALIDATED_FOR_SMP            0
+/*-----------------------------------------------------------*/
+
+/* ARMv8-M common port configurations. */
+#include "portmacrocommon.h"
+/*-----------------------------------------------------------*/
+
+/**
+ * @brief Critical section management.
+ */
+#define portDISABLE_INTERRUPTS()    ulSetInterruptMask()
+#define portENABLE_INTERRUPTS()     vClearInterruptMask( 0 )
+/*-----------------------------------------------------------*/
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+    }
+```
+
+**解说：** 这一段引入当前文件依赖的头文件，让后续代码可以使用 FreeRTOS、标准库或移植层提供的类型、宏和函数。
+
+## 片段 3: 预处理配置
+
+```c
+#endif
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 4: 预处理配置
+
+```c
+/* *INDENT-ON* */
+#endif /* PORTMACRO_H */
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。

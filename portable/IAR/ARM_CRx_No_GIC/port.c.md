@@ -1,0 +1,438 @@
+# port.c 代码解说
+
+源文件：`portable/IAR/ARM_CRx_No_GIC/port.c`
+
+> 本文件由 `tools/generate_code_markdown.py` 自动生成。内容是面向阅读的代码解说，不会替代源码注释或官方文档。
+
+## 片段 1: 文件头和许可证
+
+```c
+/*
+ * FreeRTOS Kernel <DEVELOPMENT BRANCH>
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
+ */
+```
+
+**解说：** 这一段是文件头，说明项目归属、许可证和免责条款；它告诉使用者这个文件按 MIT 许可证发布。
+
+## 片段 2: 预处理配置
+
+```c
+/* Standard includes. */
+#include <stdlib.h>
+
+/* Scheduler includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+
+#if configUSE_PORT_OPTIMISED_TASK_SELECTION == 1
+    /* Check the configuration. */
+    #if ( configMAX_PRIORITIES > 32 )
+        #error configUSE_PORT_OPTIMISED_TASK_SELECTION can only be set to 1 when configMAX_PRIORITIES is less than or equal to 32.  It is very rare that a system requires more than 10 to 15 difference priorities as tasks that share a priority will time slice.
+    #endif
+```
+
+**解说：** 这一段引入当前文件依赖的头文件，让后续代码可以使用 FreeRTOS、标准库或移植层提供的类型、宏和函数。
+
+## 片段 3: 预处理配置
+
+```c
+#endif /* configUSE_PORT_OPTIMISED_TASK_SELECTION */
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 4: 预处理配置
+
+```c
+#ifndef configSETUP_TICK_INTERRUPT
+    #error configSETUP_TICK_INTERRUPT() must be defined in FreeRTOSConfig.h to call the function that sets up the tick interrupt.
+#endif
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 5: 预处理配置
+
+```c
+#ifndef configCLEAR_TICK_INTERRUPT
+    #error configCLEAR_TICK_INTERRUPT must be defined in FreeRTOSConfig.h to clear which ever interrupt was used to generate the tick interrupt.
+#endif
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 6: 宏 prvTaskExitError
+
+```c
+/* A critical section is exited when the critical section nesting count reaches
+ * this value. */
+#define portNO_CRITICAL_NESTING          ( ( uint32_t ) 0 )
+
+/* Tasks are not created with a floating point context, but can be given a
+ * floating point context after they have been created.  A variable is stored as
+ * part of the tasks context that holds portNO_FLOATING_POINT_CONTEXT if the task
+ * does not have an FPU context, or any other value if the task does have an FPU
+ * context. */
+#define portNO_FLOATING_POINT_CONTEXT    ( ( StackType_t ) 0 )
+
+/* Constants required to setup the initial task context. */
+#define portINITIAL_SPSR                 ( ( StackType_t ) 0x1f ) /* System mode, ARM mode, IRQ enabled FIQ enabled. */
+#define portTHUMB_MODE_BIT               ( ( StackType_t ) 0x20 )
+#define portTHUMB_MODE_ADDRESS           ( 0x01UL )
+
+/* Masks all bits in the APSR other than the mode bits. */
+#define portAPSR_MODE_BITS_MASK          ( 0x1F )
+
+/* The value of the mode bits in the APSR when the CPU is executing in user
+ * mode. */
+#define portAPSR_USER_MODE               ( 0x10 )
+
+/* Let the user override the pre-loading of the initial LR with the address of
+ * prvTaskExitError() in case it messes up unwinding of the stack in the
+ * debugger. */
+#ifdef configTASK_RETURN_ADDRESS
+    #define portTASK_RETURN_ADDRESS    configTASK_RETURN_ADDRESS
+#else
+    #define portTASK_RETURN_ADDRESS    prvTaskExitError
+#endif
+```
+
+**解说：** 这一段定义宏 `prvTaskExitError`。宏在编译前展开，通常用于表达常量、轻量封装、配置开关或平台相关操作。
+
+## 片段 7: 代码片段 7
+
+```c
+/*-----------------------------------------------------------*/
+/*
+ * Starts the first task executing.  This function is necessarily written in
+ * assembly code so is implemented in portASM.s.
+ */
+extern void vPortRestoreTaskContext( void );
+```
+
+**解说：** 这一段是 `port.c` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 8: 代码片段 8
+
+```c
+/*
+ * Used to catch tasks that attempt to return from their implementing function.
+ */
+static void prvTaskExitError( void );
+```
+
+**解说：** 这一段计算并返回结果；调用者会根据返回值继续决定后续流程。
+
+## 片段 9: 代码片段 9
+
+```c
+/*-----------------------------------------------------------*/
+/* A variable is used to keep track of the critical section nesting.  This
+ * variable has to be stored as part of the task context and must be initialised to
+ * a non zero value to ensure interrupts don't inadvertently become unmasked before
+ * the scheduler starts.  As it is stored as part of the task context it will
+ * automatically be set to 0 when the first task is started. */
+volatile uint32_t ulCriticalNesting = 9999UL;
+```
+
+**解说：** 这一段是 `port.c` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 10: 代码片段 10
+
+```c
+/* Saved as part of the task context.  If ulPortTaskHasFPUContext is non-zero then
+ * a floating point context must be saved and restored for the task. */
+volatile uint32_t ulPortTaskHasFPUContext = pdFALSE;
+/* Set to 1 to pend a context switch from an ISR. */
+volatile uint32_t ulPortYieldRequired = pdFALSE;
+/* Counts the interrupt nesting depth.  A context switch is only performed if
+ * if the nesting depth is 0. */
+volatile uint32_t ulPortInterruptNesting = 0UL;
+```
+
+**解说：** 这一段是 `port.c` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 11: 函数 pxPortInitialiseStack
+
+```c
+/*-----------------------------------------------------------*/
+/*
+ * See header file for description.
+ */
+StackType_t * pxPortInitialiseStack( StackType_t * pxTopOfStack,
+                                     TaskFunction_t pxCode,
+                                     void * pvParameters )
+{
+    /* Setup the initial stack of the task.  The stack is set exactly as
+     * expected by the portRESTORE_CONTEXT() macro.
+     *
+     * The fist real value on the stack is the status register, which is set for
+     * system mode, with interrupts enabled.  A few NULLs are added first to ensure
+     * GDB does not try decoding a non-existent return address. */
+    *pxTopOfStack = ( StackType_t ) NULL;
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) NULL;
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) NULL;
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) portINITIAL_SPSR;
+
+    if( ( ( uint32_t ) pxCode & portTHUMB_MODE_ADDRESS ) != 0x00UL )
+    {
+        /* The task will start in THUMB mode. */
+        *pxTopOfStack |= portTHUMB_MODE_BIT;
+    }
+
+    pxTopOfStack--;
+
+    /* Next the return address, which in this case is the start of the task. */
+    *pxTopOfStack = ( StackType_t ) pxCode;
+    pxTopOfStack--;
+
+    /* Next all the registers other than the stack pointer. */
+    *pxTopOfStack = ( StackType_t ) portTASK_RETURN_ADDRESS; /* R14 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x12121212;              /* R12 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x11111111;              /* R11 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x10101010;              /* R10 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x09090909;              /* R9 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x08080808;              /* R8 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x07070707;              /* R7 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x06060606;              /* R6 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x05050505;              /* R5 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x04040404;              /* R4 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x03030303;              /* R3 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x02020202;              /* R2 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) 0x01010101;              /* R1 */
+    pxTopOfStack--;
+    *pxTopOfStack = ( StackType_t ) pvParameters;            /* R0 */
+    pxTopOfStack--;
+
+    /* The task will start with a critical nesting count of 0 as interrupts are
+     * enabled. */
+    *pxTopOfStack = portNO_CRITICAL_NESTING;
+    pxTopOfStack--;
+
+    /* The task will start without a floating point context.  A task that uses
+     * the floating point hardware must call vPortTaskUsesFPU() before executing
+     * any floating point instructions. */
+    *pxTopOfStack = portNO_FLOATING_POINT_CONTEXT;
+
+    return pxTopOfStack;
+}
+```
+
+**解说：** 这一段实现函数 `pxPortInitialiseStack`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 12: 函数 prvTaskExitError
+
+```c
+/*-----------------------------------------------------------*/
+static void prvTaskExitError( void )
+{
+    /* A function that implements a task must not exit or attempt to return to
+     * its caller as there is nothing to return to.  If a task wants to exit it
+     * should instead call vTaskDelete( NULL ).
+     *
+     * Artificially force an assert() to be triggered if configASSERT() is
+     * defined, then stop here so application writers can catch the error. */
+    configASSERT( ulPortInterruptNesting == ~0UL );
+    portDISABLE_INTERRUPTS();
+
+    for( ; ; )
+    {
+    }
+}
+```
+
+**解说：** 这一段实现函数 `prvTaskExitError`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 13: 函数 xPortStartScheduler
+
+```c
+/*-----------------------------------------------------------*/
+BaseType_t xPortStartScheduler( void )
+{
+    uint32_t ulAPSR;
+
+    /* Only continue if the CPU is not in User mode.  The CPU must be in a
+     * Privileged mode for the scheduler to start. */
+    __asm volatile ( "MRS %0, APSR" : "=r" ( ulAPSR ) );
+
+    ulAPSR &= portAPSR_MODE_BITS_MASK;
+    configASSERT( ulAPSR != portAPSR_USER_MODE );
+
+    if( ulAPSR != portAPSR_USER_MODE )
+    {
+        /* Start the timer that generates the tick ISR. */
+        portDISABLE_INTERRUPTS();
+        configSETUP_TICK_INTERRUPT();
+
+        /* Start the first task executing. */
+        vPortRestoreTaskContext();
+    }
+
+    /* Will only get here if vTaskStartScheduler() was called with the CPU in
+     * a non-privileged mode or the binary point register was not set to its lowest
+     * possible value.  prvTaskExitError() is referenced to prevent a compiler
+     * warning about it being defined but not referenced in the case that the user
+     * defines their own exit address. */
+    ( void ) prvTaskExitError;
+    return 0;
+}
+```
+
+**解说：** 这一段实现函数 `xPortStartScheduler`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 14: 函数 vPortEndScheduler
+
+```c
+/*-----------------------------------------------------------*/
+void vPortEndScheduler( void )
+{
+    /* Not implemented in ports where there is nothing to return to.
+     * Artificially force an assert. */
+    configASSERT( ulCriticalNesting == 1000UL );
+}
+```
+
+**解说：** 这一段实现函数 `vPortEndScheduler`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 15: 函数 vPortEnterCritical
+
+```c
+/*-----------------------------------------------------------*/
+void vPortEnterCritical( void )
+{
+    portDISABLE_INTERRUPTS();
+
+    /* Now that interrupts are disabled, ulCriticalNesting can be accessed
+     * directly.  Increment ulCriticalNesting to keep a count of how many times
+     * portENTER_CRITICAL() has been called. */
+    ulCriticalNesting++;
+
+    /* This is not the interrupt safe version of the enter critical function so
+     * assert() if it is being called from an interrupt context.  Only API
+     * functions that end in "FromISR" can be used in an interrupt.  Only assert if
+     * the critical nesting count is 1 to protect against recursive calls if the
+     * assert function also uses a critical section. */
+    if( ulCriticalNesting == 1 )
+    {
+        configASSERT( ulPortInterruptNesting == 0 );
+    }
+}
+```
+
+**解说：** 这一段实现函数 `vPortEnterCritical`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 16: 函数 vPortExitCritical
+
+```c
+/*-----------------------------------------------------------*/
+void vPortExitCritical( void )
+{
+    if( ulCriticalNesting > portNO_CRITICAL_NESTING )
+    {
+        /* Decrement the nesting count as the critical section is being
+         * exited. */
+        ulCriticalNesting--;
+
+        /* If the nesting level has reached zero then all interrupt
+         * priorities must be re-enabled. */
+        if( ulCriticalNesting == portNO_CRITICAL_NESTING )
+        {
+            /* Critical nesting has reached zero so all interrupt priorities
+             * should be unmasked. */
+            portENABLE_INTERRUPTS();
+        }
+    }
+}
+```
+
+**解说：** 这一段实现函数 `vPortExitCritical`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 17: 函数 FreeRTOS_Tick_Handler
+
+```c
+/*-----------------------------------------------------------*/
+void FreeRTOS_Tick_Handler( void )
+{
+    uint32_t ulInterruptStatus;
+
+    ulInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
+
+    /* Increment the RTOS tick. */
+    if( xTaskIncrementTick() != pdFALSE )
+    {
+        ulPortYieldRequired = pdTRUE;
+    }
+
+    portCLEAR_INTERRUPT_MASK_FROM_ISR( ulInterruptStatus );
+
+    configCLEAR_TICK_INTERRUPT();
+}
+```
+
+**解说：** 这一段实现函数 `FreeRTOS_Tick_Handler`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 18: 函数 vPortTaskUsesFPU
+
+```c
+/*-----------------------------------------------------------*/
+void vPortTaskUsesFPU( void )
+{
+    uint32_t ulInitialFPSCR = 0;
+
+    /* A task is registering the fact that it needs an FPU context.  Set the
+     * FPU flag (which is saved as part of the task context). */
+    ulPortTaskHasFPUContext = pdTRUE;
+
+    /* Initialise the floating point status register. */
+    __asm volatile ( "FMXR  FPSCR, %0" ::"r" ( ulInitialFPSCR ) );
+}
+```
+
+**解说：** 这一段实现函数 `vPortTaskUsesFPU`。它把一组相关步骤封装成可调用的行为，供内核内部或公开 API 在需要时执行。
+
+## 片段 19: 说明性注释
+
+```c
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是源码作者留下的说明，概括了后续代码的意图或使用条件。原意可理解为：-----------------------------------------------------------。

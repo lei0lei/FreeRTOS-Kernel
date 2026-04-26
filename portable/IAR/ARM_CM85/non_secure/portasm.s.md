@@ -1,0 +1,1053 @@
+# portasm.s 代码解说
+
+源文件：`portable/IAR/ARM_CM85/non_secure/portasm.s`
+
+> 本文件由 `tools/generate_code_markdown.py` 自动生成。内容是面向阅读的代码解说，不会替代源码注释或官方文档。
+
+## 片段 1: 文件头和许可证
+
+```asm
+/*
+ * FreeRTOS Kernel <DEVELOPMENT BRANCH>
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2024 Arm Limited and/or its affiliates
+ * <open-source-office@arm.com>
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
+ */
+/* Including FreeRTOSConfig.h here will cause build errors if the header file
+contains code not understood by the assembler - for example the 'extern' keyword.
+To avoid errors place any such code inside a #ifdef __ICCARM__/#endif block so
+the code is included in C files but excluded by the preprocessor in assembly
+files (__ICCARM__ is defined by the IAR C compiler but not by the IAR assembler. */
+#include "FreeRTOSConfig.h"
+```
+
+**解说：** 这一段是文件头，说明项目归属、许可证和免责条款；它告诉使用者这个文件按 MIT 许可证发布。
+
+## 片段 2: 预处理配置
+
+```asm
+/* System call numbers includes. */
+#include "mpu_syscall_numbers.h"
+```
+
+**解说：** 这一段引入当前文件依赖的头文件，让后续代码可以使用 FreeRTOS、标准库或移植层提供的类型、宏和函数。
+
+## 片段 3: 预处理配置 configUSE_MPU_WRAPPERS_V1
+
+```asm
+#ifndef configUSE_MPU_WRAPPERS_V1
+    #define configUSE_MPU_WRAPPERS_V1 0
+#endif
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 4: 代码片段 4
+
+```asm
+    EXTERN pxCurrentTCB
+    EXTERN xSecureContext
+    EXTERN vTaskSwitchContext
+    EXTERN vPortSVCHandler_C
+    EXTERN SecureContext_SaveContext
+    EXTERN SecureContext_LoadContext
+#if ( ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) )
+    EXTERN vSystemCallEnter
+    EXTERN vSystemCallExit
+#endif
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 5: 代码片段 5
+
+```asm
+    PUBLIC xIsPrivileged
+    PUBLIC vResetPrivilege
+    PUBLIC vPortAllocateSecureContext
+    PUBLIC vRestoreContextOfFirstTask
+    PUBLIC vRaisePrivilege
+    PUBLIC vStartFirstTask
+    PUBLIC ulSetInterruptMask
+    PUBLIC vClearInterruptMask
+    PUBLIC PendSV_Handler
+    PUBLIC SVC_Handler
+    PUBLIC vPortFreeSecureContext
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 6: 说明性注释
+
+```asm
+/*---------------- Unprivileged Functions -------------------*/
+```
+
+**解说：** 这一段是源码作者留下的说明，概括了后续代码的意图或使用条件。原意可理解为：---------------- Unprivileged Functions -------------------。
+
+## 片段 7: 说明性注释
+
+```asm
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是源码作者留下的说明，概括了后续代码的意图或使用条件。原意可理解为：-----------------------------------------------------------。
+
+## 片段 8: 代码片段 8
+
+```asm
+    SECTION .text:CODE:NOROOT(2)
+    THUMB
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 9: 汇编标签 xIsPrivileged
+
+```asm
+xIsPrivileged:
+    mrs r0, control                         /* r0 = CONTROL. */
+    tst r0, #1                              /* Perform r0 & 1 (bitwise AND) and update the conditions flag. */
+    ite ne
+    movne r0, #0                            /* CONTROL[0]!=0. Return false to indicate that the processor is not privileged. */
+    moveq r0, #1                            /* CONTROL[0]==0. Return true to indicate that the processor is not privileged. */
+    bx lr                                   /* Return. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `xIsPrivileged` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 10: 汇编标签 vResetPrivilege
+
+```asm
+vResetPrivilege:
+    mrs r0, control                         /* r0 = CONTROL. */
+    orr r0, r0, #1                          /* r0 = r0 | 1. */
+    msr control, r0                         /* CONTROL = r0. */
+    bx lr                                   /* Return to the caller. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `vResetPrivilege` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 11: 汇编标签 vPortAllocateSecureContext
+
+```asm
+vPortAllocateSecureContext:
+    svc 100                                 /* Secure context is allocated in the supervisor call. portSVC_ALLOCATE_SECURE_CONTEXT = 100. */
+    bx lr                                   /* Return. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `vPortAllocateSecureContext` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 12: 说明性注释
+
+```asm
+/*----------------- Privileged Functions --------------------*/
+```
+
+**解说：** 这一段是源码作者留下的说明，概括了后续代码的意图或使用条件。原意可理解为：----------------- Privileged Functions --------------------。
+
+## 片段 13: 说明性注释
+
+```asm
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是源码作者留下的说明，概括了后续代码的意图或使用条件。原意可理解为：-----------------------------------------------------------。
+
+## 片段 14: 代码片段 14
+
+```asm
+    SECTION privileged_functions:CODE:NOROOT(2)
+    THUMB
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 15: 预处理配置
+
+```asm
+#if ( configENABLE_MPU == 1 )
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 16: 汇编标签 vRestoreContextOfFirstTask
+
+```asm
+vRestoreContextOfFirstTask:
+    program_mpu_first_task:
+        ldr r3, =pxCurrentTCB               /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+        ldr r0, [r3]                        /* r0 = pxCurrentTCB. */
+```
+
+**解说：** 这一段是汇编标签 `vRestoreContextOfFirstTask` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 17: 代码片段 17
+
+```asm
+        dmb                                 /* Complete outstanding transfers before disabling MPU. */
+        ldr r1, =0xe000ed94                 /* r1 = 0xe000ed94 [Location of MPU_CTRL]. */
+        ldr r2, [r1]                        /* Read the value of MPU_CTRL. */
+        bic r2, #1                          /* r2 = r2 & ~1 i.e. Clear the bit 0 in r2. */
+        str r2, [r1]                        /* Disable MPU. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 18: 代码片段 18
+
+```asm
+        adds r0, #4                         /* r0 = r0 + 4. r0 now points to MAIR0 in TCB. */
+        ldr r1, [r0]                        /* r1 = *r0 i.e. r1 = MAIR0. */
+        ldr r2, =0xe000edc0                 /* r2 = 0xe000edc0 [Location of MAIR0]. */
+        str r1, [r2]                        /* Program MAIR0. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 19: 代码片段 19
+
+```asm
+        adds r0, #4                         /* r0 = r0 + 4. r0 now points to first RBAR in TCB. */
+        ldr r1, =0xe000ed98                 /* r1 = 0xe000ed98 [Location of RNR]. */
+        ldr r2, =0xe000ed9c                 /* r2 = 0xe000ed9c [Location of RBAR]. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 20: 代码片段 20
+
+```asm
+        movs r3, #4                         /* r3 = 4. */
+        str r3, [r1]                        /* Program RNR = 4. */
+        ldmia r0!, {r4-r11}                 /* Read 4 set of RBAR/RLAR registers from TCB. */
+        stmia r2, {r4-r11}                  /* Write 4 set of RBAR/RLAR registers using alias registers. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 21: 预处理配置
+
+```asm
+    #if ( configTOTAL_MPU_REGIONS == 16 )
+        movs r3, #8                         /* r3 = 8. */
+        str r3, [r1]                        /* Program RNR = 8. */
+        ldmia r0!, {r4-r11}                 /* Read 4 set of RBAR/RLAR registers from TCB. */
+        stmia r2, {r4-r11}                  /* Write 4 set of RBAR/RLAR registers using alias registers. */
+        movs r3, #12                        /* r3 = 12. */
+        str r3, [r1]                        /* Program RNR = 12. */
+        ldmia r0!, {r4-r11}                 /* Read 4 set of RBAR/RLAR registers from TCB. */
+        stmia r2, {r4-r11}                  /* Write 4 set of RBAR/RLAR registers using alias registers. */
+    #endif /* configTOTAL_MPU_REGIONS == 16 */
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 22: 代码片段 22
+
+```asm
+        ldr r1, =0xe000ed94                 /* r1 = 0xe000ed94 [Location of MPU_CTRL]. */
+        ldr r2, [r1]                        /* Read the value of MPU_CTRL. */
+        orr r2, #1                          /* r2 = r1 | 1 i.e. Set the bit 0 in r2. */
+        str r2, [r1]                        /* Enable MPU. */
+        dsb                                 /* Force memory writes before continuing. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 23: 汇编标签 restore_context_first_task
+
+```asm
+    restore_context_first_task:
+        ldr r3, =pxCurrentTCB               /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+        ldr r1, [r3]                        /* r1 = pxCurrentTCB.*/
+        ldr r2, [r1]                        /* r2 = Location of saved context in TCB. */
+```
+
+**解说：** 这一段是汇编标签 `restore_context_first_task` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 24: 汇编标签 restore_special_regs_first_task
+
+```asm
+    restore_special_regs_first_task:
+    #if ( configENABLE_PAC == 1 )
+        ldmdb r2!, {r3-r6}                  /* Read task's dedicated PAC key from the task's context. */
+        msr  PAC_KEY_P_0, r3                /* Write the task's dedicated PAC key to the PAC key registers. */
+        msr  PAC_KEY_P_1, r4
+        msr  PAC_KEY_P_2, r5
+        msr  PAC_KEY_P_3, r6
+        clrm {r3-r6}                        /* Clear r3-r6. */
+    #endif /* configENABLE_PAC */
+        ldmdb r2!, {r0, r3-r5, lr}          /* r0 = xSecureContext, r3 = original PSP, r4 = PSPLIM, r5 = CONTROL, LR restored. */
+        msr psp, r3
+        msr psplim, r4
+        msr control, r5
+        ldr r4, =xSecureContext             /* Read the location of xSecureContext i.e. &( xSecureContext ). */
+        str r0, [r4]                        /* Restore xSecureContext. */
+```
+
+**解说：** 这一段是汇编标签 `restore_special_regs_first_task` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 25: 汇编标签 restore_general_regs_first_task
+
+```asm
+    restore_general_regs_first_task:
+        ldmdb r2!, {r4-r11}                 /* r4-r11 contain hardware saved context. */
+        stmia r3!, {r4-r11}                 /* Copy the hardware saved context on the task stack. */
+        ldmdb r2!, {r4-r11}                 /* r4-r11 restored. */
+```
+
+**解说：** 这一段是汇编标签 `restore_general_regs_first_task` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 26: 汇编标签 restore_context_done_first_task
+
+```asm
+    restore_context_done_first_task:
+        str r2, [r1]                        /* Save the location where the context should be saved next as the first member of TCB. */
+        mov r0, #0
+        msr basepri, r0                     /* Ensure that interrupts are enabled when the first task starts. */
+        bx lr
+```
+
+**解说：** 这一段是汇编标签 `restore_context_done_first_task` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 27: 预处理配置
+
+```asm
+#else /* configENABLE_MPU */
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 28: 汇编标签 vRestoreContextOfFirstTask
+
+```asm
+vRestoreContextOfFirstTask:
+    ldr  r2, =pxCurrentTCB                  /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+    ldr  r3, [r2]                           /* Read pxCurrentTCB. */
+    ldr  r0, [r3]                           /* Read top of stack from TCB - The first item in pxCurrentTCB is the task top of stack. */
+```
+
+**解说：** 这一段是汇编标签 `vRestoreContextOfFirstTask` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 29: 预处理配置
+
+```asm
+#if ( configENABLE_PAC == 1 )
+    ldmia r0!, {r1-r4}                      /* Read task's dedicated PAC key from stack. */
+    msr  PAC_KEY_P_3, r1                    /* Write the task's dedicated PAC key to the PAC key registers. */
+    msr  PAC_KEY_P_2, r2
+    msr  PAC_KEY_P_1, r3
+    msr  PAC_KEY_P_0, r4
+    clrm {r1-r4}                            /* Clear r1-r4.  */
+#endif /* configENABLE_PAC */
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 30: 代码片段 30
+
+```asm
+    ldm  r0!, {r1-r3}                       /* Read from stack - r1 = xSecureContext, r2 = PSPLIM and r3 = EXC_RETURN. */
+    ldr  r4, =xSecureContext
+    str  r1, [r4]                           /* Set xSecureContext to this task's value for the same. */
+    msr  psplim, r2                         /* Set this task's PSPLIM value. */
+    mrs  r1, control                        /* Obtain current control register value. */
+    orrs r1, r1, #2                         /* r1 = r1 | 0x2 - Set the second bit to use the program stack pointe (PSP). */
+    msr control, r1                         /* Write back the new control register value. */
+    adds r0, #32                            /* Discard everything up to r0. */
+    msr  psp, r0                            /* This is now the new top of stack to use in the task. */
+    isb
+    mov  r0, #0
+    msr  basepri, r0                        /* Ensure that interrupts are enabled when the first task starts. */
+    bx   r3                                 /* Finally, branch to EXC_RETURN. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 31: 预处理配置
+
+```asm
+#endif /* configENABLE_MPU */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 32: 汇编标签 vRaisePrivilege
+
+```asm
+vRaisePrivilege:
+    mrs  r0, control                        /* Read the CONTROL register. */
+    bic r0, r0, #1                          /* Clear the bit 0. */
+    msr  control, r0                        /* Write back the new CONTROL value. */
+    bx lr                                   /* Return to the caller. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `vRaisePrivilege` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 33: 汇编标签 vStartFirstTask
+
+```asm
+vStartFirstTask:
+    ldr r0, =0xe000ed08                     /* Use the NVIC offset register to locate the stack. */
+    ldr r0, [r0]                            /* Read the VTOR register which gives the address of vector table. */
+    ldr r0, [r0]                            /* The first entry in vector table is stack pointer. */
+    msr msp, r0                             /* Set the MSP back to the start of the stack. */
+    cpsie i                                 /* Globally enable interrupts. */
+    cpsie f
+    dsb
+    isb
+    svc 102                                 /* System call to start the first task. portSVC_START_SCHEDULER = 102. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `vStartFirstTask` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 34: 汇编标签 ulSetInterruptMask
+
+```asm
+ulSetInterruptMask:
+    mrs r0, basepri                         /* r0 = basepri. Return original basepri value. */
+    mov r1, #configMAX_SYSCALL_INTERRUPT_PRIORITY
+    msr basepri, r1                         /* Disable interrupts up to configMAX_SYSCALL_INTERRUPT_PRIORITY. */
+    dsb
+    isb
+    bx lr                                   /* Return. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `ulSetInterruptMask` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 35: 汇编标签 vClearInterruptMask
+
+```asm
+vClearInterruptMask:
+    msr basepri, r0                         /* basepri = ulMask. */
+    dsb
+    isb
+    bx lr                                   /* Return. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `vClearInterruptMask` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 36: 预处理配置
+
+```asm
+#if ( configENABLE_MPU == 1 )
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 37: 汇编标签 PendSV_Handler
+
+```asm
+PendSV_Handler:
+    ldr r3, =xSecureContext                 /* Read the location of xSecureContext i.e. &( xSecureContext ). */
+    ldr r0, [r3]                            /* Read xSecureContext - Value of xSecureContext must be in r0 as it is used as a parameter later. */
+    ldr r3, =pxCurrentTCB                   /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+    ldr r1, [r3]                            /* Read pxCurrentTCB - Value of pxCurrentTCB must be in r1 as it is used as a parameter later. */
+    ldr r2, [r1]                            /* r2 = Location in TCB where the context should be saved. */
+```
+
+**解说：** 这一段是汇编标签 `PendSV_Handler` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 38: 汇编标签 save_s_context
+
+```asm
+    cbz r0, save_ns_context                 /* No secure context to save. */
+    save_s_context:
+        push {r0-r2, lr}
+        bl SecureContext_SaveContext        /* Params are in r0 and r1. r0 = xSecureContext and r1 = pxCurrentTCB. */
+        pop {r0-r2, lr}
+```
+
+**解说：** 这一段是汇编标签 `save_s_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 39: 汇编标签 save_ns_context
+
+```asm
+    save_ns_context:
+        mov r3, lr                          /* r3 = LR (EXC_RETURN). */
+        lsls r3, r3, #25                    /* r3 = r3 << 25. Bit[6] of EXC_RETURN is 1 if secure stack was used, 0 if non-secure stack was used to store stack frame. */
+        bmi save_special_regs               /* r3 < 0 ==> Bit[6] in EXC_RETURN is 1 ==> secure stack was used to store the stack frame. */
+```
+
+**解说：** 这一段是汇编标签 `save_ns_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 40: 汇编标签 save_general_regs
+
+```asm
+    save_general_regs:
+        mrs r3, psp
+```
+
+**解说：** 这一段是汇编标签 `save_general_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 41: 预处理配置
+
+```asm
+    #if ( ( configENABLE_FPU == 1 ) || ( configENABLE_MVE == 1 ) )
+        add r3, r3, #0x20                   /* Move r3 to location where s0 is saved. */
+        tst lr, #0x10
+        ittt eq
+        vstmiaeq r2!, {s16-s31}             /* Store s16-s31. */
+        vldmiaeq r3, {s0-s16}               /* Copy hardware saved FP context into s0-s16. */
+        vstmiaeq r2!, {s0-s16}              /* Store hardware saved FP context. */
+        sub r3, r3, #0x20                   /* Set r3 back to the location of hardware saved context. */
+    #endif /* configENABLE_FPU || configENABLE_MVE */
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 42: 代码片段 42
+
+```asm
+        stmia r2!, {r4-r11}                 /* Store r4-r11. */
+        ldmia r3, {r4-r11}                  /* Copy the hardware saved context into r4-r11. */
+        stmia r2!, {r4-r11}                 /* Store the hardware saved context. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 43: 汇编标签 save_special_regs
+
+```asm
+    save_special_regs:
+        mrs r3, psp                         /* r3 = PSP. */
+        mrs r4, psplim                      /* r4 = PSPLIM. */
+        mrs r5, control                     /* r5 = CONTROL. */
+        stmia r2!, {r0, r3-r5, lr}          /* Store xSecureContext, original PSP (after hardware has saved context), PSPLIM, CONTROL and LR. */
+    #if ( configENABLE_PAC == 1 )
+        mrs  r3, PAC_KEY_P_0                /* Read task's dedicated PAC key from the PAC key registers. */
+        mrs  r4, PAC_KEY_P_1
+        mrs  r5, PAC_KEY_P_2
+        mrs  r6, PAC_KEY_P_3
+        stmia r2!, {r3-r6}                  /* Store the task's dedicated PAC key on the task's context. */
+        clrm {r3-r6}                        /* Clear r3-r6. */
+    #endif /* configENABLE_PAC */
+```
+
+**解说：** 这一段是汇编标签 `save_special_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 44: 代码片段 44
+
+```asm
+    str r2, [r1]                            /* Save the location from where the context should be restored as the first member of TCB. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 45: 汇编标签 select_next_task
+
+```asm
+    select_next_task:
+        mov r0, #configMAX_SYSCALL_INTERRUPT_PRIORITY
+        msr basepri, r0                     /* Disable interrupts up to configMAX_SYSCALL_INTERRUPT_PRIORITY. */
+        dsb
+        isb
+        bl vTaskSwitchContext
+        mov r0, #0                          /* r0 = 0. */
+        msr basepri, r0                     /* Enable interrupts. */
+```
+
+**解说：** 这一段是汇编标签 `select_next_task` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 46: 汇编标签 program_mpu
+
+```asm
+    program_mpu:
+        ldr r3, =pxCurrentTCB               /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+        ldr r0, [r3]                        /* r0 = pxCurrentTCB.*/
+```
+
+**解说：** 这一段是汇编标签 `program_mpu` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 47: 代码片段 47
+
+```asm
+        dmb                                 /* Complete outstanding transfers before disabling MPU. */
+        ldr r1, =0xe000ed94                 /* r1 = 0xe000ed94 [Location of MPU_CTRL]. */
+        ldr r2, [r1]                        /* Read the value of MPU_CTRL. */
+        bic r2, #1                          /* r2 = r2 & ~1 i.e. Clear the bit 0 in r2. */
+        str r2, [r1]                        /* Disable MPU. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 48: 代码片段 48
+
+```asm
+        adds r0, #4                         /* r0 = r0 + 4. r0 now points to MAIR0 in TCB. */
+        ldr r1, [r0]                        /* r1 = *r0 i.e. r1 = MAIR0. */
+        ldr r2, =0xe000edc0                 /* r2 = 0xe000edc0 [Location of MAIR0]. */
+        str r1, [r2]                        /* Program MAIR0. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 49: 代码片段 49
+
+```asm
+        adds r0, #4                         /* r0 = r0 + 4. r0 now points to first RBAR in TCB. */
+        ldr r1, =0xe000ed98                 /* r1 = 0xe000ed98 [Location of RNR]. */
+        ldr r2, =0xe000ed9c                 /* r2 = 0xe000ed9c [Location of RBAR]. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 50: 代码片段 50
+
+```asm
+        movs r3, #4                         /* r3 = 4. */
+        str r3, [r1]                        /* Program RNR = 4. */
+        ldmia r0!, {r4-r11}                 /* Read 4 sets of RBAR/RLAR registers from TCB. */
+        stmia r2, {r4-r11}                  /* Write 4 set of RBAR/RLAR registers using alias registers. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 51: 预处理配置
+
+```asm
+    #if ( configTOTAL_MPU_REGIONS == 16 )
+        movs r3, #8                         /* r3 = 8. */
+        str r3, [r1]                        /* Program RNR = 8. */
+        ldmia r0!, {r4-r11}                 /* Read 4 sets of RBAR/RLAR registers from TCB. */
+        stmia r2, {r4-r11}                  /* Write 4 set of RBAR/RLAR registers using alias registers. */
+        movs r3, #12                        /* r3 = 12. */
+        str r3, [r1]                        /* Program RNR = 12. */
+        ldmia r0!, {r4-r11}                 /* Read 4 sets of RBAR/RLAR registers from TCB. */
+        stmia r2, {r4-r11}                  /* Write 4 set of RBAR/RLAR registers using alias registers. */
+    #endif /* configTOTAL_MPU_REGIONS == 16 */
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 52: 代码片段 52
+
+```asm
+       ldr r1, =0xe000ed94                  /* r1 = 0xe000ed94 [Location of MPU_CTRL]. */
+       ldr r2, [r1]                         /* Read the value of MPU_CTRL. */
+       orr r2, #1                           /* r2 = r2 | 1 i.e. Set the bit 0 in r2. */
+       str r2, [r1]                         /* Enable MPU. */
+       dsb                                  /* Force memory writes before continuing. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 53: 汇编标签 restore_context
+
+```asm
+    restore_context:
+        ldr r3, =pxCurrentTCB               /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+        ldr r1, [r3]                        /* r1 = pxCurrentTCB.*/
+        ldr r2, [r1]                        /* r2 = Location of saved context in TCB. */
+```
+
+**解说：** 这一段是汇编标签 `restore_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 54: 汇编标签 restore_special_regs
+
+```asm
+    restore_special_regs:
+    #if ( configENABLE_PAC == 1 )
+        ldmdb r2!, {r3-r6}                  /* Read task's dedicated PAC key from the task's context. */
+        msr  PAC_KEY_P_0, r3                /* Write the task's dedicated PAC key to the PAC key registers. */
+        msr  PAC_KEY_P_1, r4
+        msr  PAC_KEY_P_2, r5
+        msr  PAC_KEY_P_3, r6
+        clrm {r3-r6}                        /* Clear r3-r6. */
+    #endif /* configENABLE_PAC */
+        ldmdb r2!, {r0, r3-r5, lr}          /* r0 = xSecureContext, r3 = original PSP, r4 = PSPLIM, r5 = CONTROL, LR restored. */
+        msr psp, r3
+        msr psplim, r4
+        msr control, r5
+        ldr r4, =xSecureContext             /* Read the location of xSecureContext i.e. &( xSecureContext ). */
+        str r0, [r4]                        /* Restore xSecureContext. */
+        cbz r0, restore_ns_context          /* No secure context to restore. */
+```
+
+**解说：** 这一段是汇编标签 `restore_special_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 55: 汇编标签 restore_s_context
+
+```asm
+    restore_s_context:
+        push {r1-r3, lr}
+        bl SecureContext_LoadContext        /* Params are in r0 and r1. r0 = xSecureContext and r1 = pxCurrentTCB. */
+        pop {r1-r3, lr}
+```
+
+**解说：** 这一段是汇编标签 `restore_s_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 56: 汇编标签 restore_ns_context
+
+```asm
+    restore_ns_context:
+        mov r0, lr                          /* r0 = LR (EXC_RETURN). */
+        lsls r0, r0, #25                    /* r0 = r0 << 25. Bit[6] of EXC_RETURN is 1 if secure stack was used, 0 if non-secure stack was used to store stack frame. */
+        bmi restore_context_done            /* r0 < 0 ==> Bit[6] in EXC_RETURN is 1 ==> secure stack was used to store the stack frame. */
+```
+
+**解说：** 这一段是汇编标签 `restore_ns_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 57: 汇编标签 restore_general_regs
+
+```asm
+    restore_general_regs:
+        ldmdb r2!, {r4-r11}                 /* r4-r11 contain hardware saved context. */
+        stmia r3!, {r4-r11}                 /* Copy the hardware saved context on the task stack. */
+        ldmdb r2!, {r4-r11}                 /* r4-r11 restored. */
+```
+
+**解说：** 这一段是汇编标签 `restore_general_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 58: 预处理配置
+
+```asm
+    #if ( ( configENABLE_FPU == 1 ) || ( configENABLE_MVE == 1 ) )
+        tst lr, #0x10
+        ittt eq
+        vldmdbeq r2!, {s0-s16}              /* s0-s16 contain hardware saved FP context. */
+        vstmiaeq r3!, {s0-s16}              /* Copy hardware saved FP context on the task stack. */
+        vldmdbeq r2!, {s16-s31}             /* Restore s16-s31. */
+    #endif /* configENABLE_FPU || configENABLE_MVE */
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 59: 汇编标签 restore_context_done
+
+```asm
+    restore_context_done:
+        str r2, [r1]                        /* Save the location where the context should be saved next as the first member of TCB. */
+        bx lr
+```
+
+**解说：** 这一段是汇编标签 `restore_context_done` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 60: 预处理配置
+
+```asm
+#else /* configENABLE_MPU */
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 61: 汇编标签 PendSV_Handler
+
+```asm
+PendSV_Handler:
+    ldr r3, =xSecureContext                 /* Read the location of xSecureContext i.e. &( xSecureContext ). */
+    ldr r0, [r3]                            /* Read xSecureContext - Value of xSecureContext must be in r0 as it is used as a parameter later. */
+    ldr r3, =pxCurrentTCB                   /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+    ldr r1, [r3]                            /* Read pxCurrentTCB - Value of pxCurrentTCB must be in r1 as it is used as a parameter later. */
+    mrs r2, psp                             /* Read PSP in r2. */
+```
+
+**解说：** 这一段是汇编标签 `PendSV_Handler` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 62: 汇编标签 save_s_context
+
+```asm
+    cbz r0, save_ns_context                 /* No secure context to save. */
+    save_s_context:
+        push {r0-r2, lr}
+        bl SecureContext_SaveContext       /* Params are in r0 and r1. r0 = xSecureContext and r1 = pxCurrentTCB. */
+        pop {r0-r2, lr}
+```
+
+**解说：** 这一段是汇编标签 `save_s_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 63: 汇编标签 save_ns_context
+
+```asm
+    save_ns_context:
+        mov r3, lr                          /* r3 = LR. */
+        lsls r3, r3, #25                    /* r3 = r3 << 25. Bit[6] of EXC_RETURN is 1 if secure stack was used, 0 if non-secure stack was used to store stack frame. */
+        bmi save_special_regs               /* If r3 < 0 ==> Bit[6] in EXC_RETURN is 1 ==> secure stack was used. */
+```
+
+**解说：** 这一段是汇编标签 `save_ns_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 64: 汇编标签 save_general_regs
+
+```asm
+    save_general_regs:
+    #if ( ( configENABLE_FPU == 1 ) || ( configENABLE_MVE == 1 ) )
+        tst lr, #0x10                       /* Test Bit[4] in LR. Bit[4] of EXC_RETURN is 0 if the Extended Stack Frame is in use. */
+        it eq
+        vstmdbeq r2!, {s16-s31}             /* Store the additional FP context registers which are not saved automatically. */
+    #endif /* configENABLE_FPU || configENABLE_MVE */
+        stmdb r2!, {r4-r11}                 /* Store the registers that are not saved automatically. */
+```
+
+**解说：** 这一段是汇编标签 `save_general_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 65: 汇编标签 save_special_regs
+
+```asm
+    save_special_regs:
+        mrs r3, psplim                      /* r3 = PSPLIM. */
+        stmdb r2!, {r0, r3, lr}             /* Store xSecureContext, PSPLIM and LR on the stack. */
+    #if ( configENABLE_PAC == 1 )
+        mrs  r3, PAC_KEY_P_3                /* Read task's dedicated PAC key from the PAC key registers. */
+        mrs  r4, PAC_KEY_P_2
+        mrs  r5, PAC_KEY_P_1
+        mrs  r6, PAC_KEY_P_0
+        stmdb r2!, {r3-r6}                  /* Store the task's dedicated PAC key on the stack. */
+        clrm {r3-r6}                        /* Clear r3-r6. */
+    #endif /* configENABLE_PAC */
+```
+
+**解说：** 这一段是汇编标签 `save_special_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 66: 代码片段 66
+
+```asm
+    str r2, [r1]                            /* Save the new top of stack in TCB. */
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 67: 汇编标签 select_next_task
+
+```asm
+    select_next_task:
+        mov r0, #configMAX_SYSCALL_INTERRUPT_PRIORITY
+        msr basepri, r0                     /* Disable interrupts up to configMAX_SYSCALL_INTERRUPT_PRIORITY. */
+        dsb
+        isb
+        bl vTaskSwitchContext
+        mov r0, #0                          /* r0 = 0. */
+        msr basepri, r0                     /* Enable interrupts. */
+```
+
+**解说：** 这一段是汇编标签 `select_next_task` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 68: 汇编标签 restore_context
+
+```asm
+    restore_context:
+        ldr r3, =pxCurrentTCB               /* Read the location of pxCurrentTCB i.e. &( pxCurrentTCB ). */
+        ldr r1, [r3]                        /* Read pxCurrentTCB. */
+        ldr r2, [r1]                        /* The first item in pxCurrentTCB is the task top of stack. r2 now points to the top of stack. */
+```
+
+**解说：** 这一段是汇编标签 `restore_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 69: 汇编标签 restore_special_regs
+
+```asm
+    restore_special_regs:
+    #if ( configENABLE_PAC == 1 )
+        ldmia r2!, {r3-r6}                  /* Read task's dedicated PAC key from stack. */
+        msr  PAC_KEY_P_3, r3                /* Write the task's dedicated PAC key to the PAC key registers. */
+        msr  PAC_KEY_P_2, r4
+        msr  PAC_KEY_P_1, r5
+        msr  PAC_KEY_P_0, r6
+        clrm {r3-r6}                        /* Clear r3-r6. */
+    #endif /* configENABLE_PAC */
+        ldmia r2!, {r0, r3, lr}             http://files.iar.com/ftp/pub/box/bxarm-9.60.3.deb/* Read from stack - r0 = xSecureContext, r3 = PSPLIM and LR restored. */
+        msr psplim, r3                      /* Restore the PSPLIM register value for the task. */
+        ldr r3, =xSecureContext             /* Read the location of xSecureContext i.e. &( xSecureContext ). */
+        str r0, [r3]                        /* Restore the task's xSecureContext. */
+        cbz r0, restore_ns_context          /* If there is no secure context for the task, restore the non-secure context. */
+```
+
+**解说：** 这一段是汇编标签 `restore_special_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 70: 汇编标签 restore_s_context
+
+```asm
+    restore_s_context:
+        push {r1-r3, lr}
+        bl SecureContext_LoadContext        /* Restore the secure context. Params are in r0 and r1. r0 = xSecureContext and r1 = pxCurrentTCB. */
+        pop {r1-r3, lr}
+```
+
+**解说：** 这一段是汇编标签 `restore_s_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 71: 汇编标签 restore_ns_context
+
+```asm
+    restore_ns_context:
+        mov r0, lr                          /* r0 = LR (EXC_RETURN). */
+        lsls r0, r0, #25                    /* r0 = r0 << 25. Bit[6] of EXC_RETURN is 1 if secure stack was used, 0 if non-secure stack was used to store stack frame. */
+        bmi restore_context_done            /* r0 < 0 ==> Bit[6] in EXC_RETURN is 1 ==> secure stack was used to store the stack frame. */
+```
+
+**解说：** 这一段是汇编标签 `restore_ns_context` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 72: 汇编标签 restore_general_regs
+
+```asm
+    restore_general_regs:
+        ldmia r2!, {r4-r11}                 /* Restore the registers that are not automatically restored. */
+    #if ( ( configENABLE_FPU == 1 ) || ( configENABLE_MVE == 1 ) )
+        tst lr, #0x10                       /* Test Bit[4] in LR. Bit[4] of EXC_RETURN is 0 if the Extended Stack Frame is in use. */
+        it eq
+        vldmiaeq r2!, {s16-s31}             /* Restore the additional FP context registers which are not restored automatically. */
+    #endif /* configENABLE_FPU || configENABLE_MVE */
+```
+
+**解说：** 这一段是汇编标签 `restore_general_regs` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 73: 汇编标签 restore_context_done
+
+```asm
+    restore_context_done:
+        msr psp, r2                         /* Remember the new top of stack for the task. */
+        bx lr
+```
+
+**解说：** 这一段是汇编标签 `restore_context_done` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 74: 预处理配置
+
+```asm
+#endif /* configENABLE_MPU */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 75: 预处理配置
+
+```asm
+#if ( ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) )
+```
+
+**解说：** 这一段根据编译配置选择启用或禁用某些代码路径，保证同一份源码可以适配不同内核配置、编译器或硬件端口。
+
+## 片段 76: 汇编标签 SVC_Handler
+
+```asm
+SVC_Handler:
+    tst lr, #4
+    ite eq
+    mrseq r0, msp
+    mrsne r0, psp
+```
+
+**解说：** 这一段是汇编标签 `SVC_Handler` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 77: 代码片段 77
+
+```asm
+    ldr r1, [r0, #24]
+    ldrb r2, [r1, #-2]
+    cmp r2, #NUM_SYSTEM_CALLS
+    blt syscall_enter
+    cmp r2, #104            /* portSVC_SYSTEM_CALL_EXIT. */
+    beq syscall_exit
+    b vPortSVCHandler_C
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
+
+## 片段 78: 汇编标签 syscall_enter
+
+```asm
+    syscall_enter:
+        mov r1, lr
+        b vSystemCallEnter
+```
+
+**解说：** 这一段是汇编标签 `syscall_enter` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 79: 汇编标签 syscall_exit
+
+```asm
+    syscall_exit:
+        mov r1, lr
+        b vSystemCallExit
+```
+
+**解说：** 这一段是汇编标签 `syscall_exit` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 80: 预处理配置
+
+```asm
+#else /* ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) */
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 81: 汇编标签 SVC_Handler
+
+```asm
+SVC_Handler:
+    tst lr, #4
+    ite eq
+    mrseq r0, msp
+    mrsne r0, psp
+    b vPortSVCHandler_C
+```
+
+**解说：** 这一段是汇编标签 `SVC_Handler` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 82: 预处理配置
+
+```asm
+#endif /* ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段在编译前生效，用来定义编译条件、常量或包含关系。
+
+## 片段 83: 汇编标签 vPortFreeSecureContext
+
+```asm
+vPortFreeSecureContext:
+    /* r0 = uint32_t *pulTCB. */
+    ldr r2, [r0]                            /* The first item in the TCB is the top of the stack. */
+    ldr r1, [r2]                            /* The first item on the stack is the task's xSecureContext. */
+    cmp r1, #0                              /* Raise svc if task's xSecureContext is not NULL. */
+    it ne
+    svcne 101                               /* Secure context is freed in the supervisor call. portSVC_FREE_SECURE_CONTEXT = 101. */
+    bx lr                                   /* Return. */
+/*-----------------------------------------------------------*/
+```
+
+**解说：** 这一段是汇编标签 `vPortFreeSecureContext` 附近的代码，通常对应异常入口、上下文切换、启动流程或特定处理器指令序列。
+
+## 片段 84: 代码片段 84
+
+```asm
+    END
+```
+
+**解说：** 这一段是 `portasm.s` 中的普通实现代码，负责准备数据、更新状态或串联前后逻辑，使所在模块能够完成自己的职责。
